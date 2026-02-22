@@ -1,0 +1,29 @@
+<Configuration>
+  <vGPU>Enable</vGPU>
+  <MemoryInMB>8192</MemoryInMB>
+  <MappedFolders>
+    <!-- Map the Robot Folder -->
+    <MappedFolder>
+      <HostFolder>C:\workspace\thinkorswim_robot</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\robot</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+    
+    <!-- Map the ThinkOrSwim Folder -->
+    <MappedFolder>
+      <HostFolder>C:\Users\Admin\AppData\Local\thinkorswim</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\tos</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+
+    <!-- Map Python Folder (to avoid re-installing) -->
+    <MappedFolder>
+      <HostFolder>C:\Users\Admin\AppData\Local\Programs\Python\Python311</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\python</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>C:\Users\WDAGUtilityAccount\Desktop\robot\setup_sandbox.bat</Command>
+  </LogonCommand>
+</Configuration>
