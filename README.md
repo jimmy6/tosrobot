@@ -8,6 +8,8 @@ This repository contains a Windows‑based automation suite that drives the Thin
 - Restart safely with a 60‑second delayed status check (`/restart`).
 - Automatically refresh the Schwab OAuth token if it will expire within 24 hours.
 
+![Architecture Diagram](img/architecture.png)
+
 ## Directory Layout
 ```
 .
@@ -59,8 +61,7 @@ This repository contains a Windows‑based automation suite that drives the Thin
 ## Token Refresh Logic (PowerShell)
 The launcher reads `schwab_tokens.json`. If the `access_token_expires_at` timestamp is less than 24 hours from now, it automatically runs `auth_helper.py` to obtain a fresh token before launching the Java engine.
 
-## Cleaning Up (Optional)
-If you no longer need the legacy C# bridge, you can delete the `tos‑rtd‑csharp` folder and its CSV mapping files (`tos_uia_elements.csv`, `uia_elements.csv`). The README_RTD_BRIDGE.md can also be removed.
+
 
 ## License
 MIT – see `LICENSE` file (if present).
