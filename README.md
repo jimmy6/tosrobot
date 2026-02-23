@@ -39,6 +39,8 @@ This repository contains a Windows‑based automation suite that drives the Thin
    ```text
    TOS_USERNAME=your_tos_username
    TOS_PASSWORD=your_tos_password
+   SCHWAB_CLIENT_ID=your_schwab_client_id
+   SCHWAB_CLIENT_SECRET=your_schwab_client_secret
    ```
    The file is ignored via `.gitignore` so it never gets committed.
 3. **Run the launcher**

@@ -17,6 +17,19 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host "       THINKORSWIM ROBOT - MASTER LAUNCHER        " -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
+# Load credentials from .env early so auth_helper.py can read Schwab credentials
+$envFile = Join-Path $ScriptDir ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | Where-Object { $_ -match '\S' } |
+        ForEach-Object {
+            $pair = $_ -split '=',2
+            $name = $pair[0].Trim()
+            $value = $pair[1].Trim()
+            Set-Item -Path "Env:$name" -Value $value
+        }
+}
+$TOSUsername = $Env:TOS_USERNAME
+$TOSPassword = $Env:TOS_PASSWORD
 
 # Step 1: Authentication Phase
 Write-Host "[1/3] Initiating Charles Schwab OAuth..." -ForegroundColor Yellow
@@ -77,20 +90,7 @@ if ([string]::IsNullOrWhiteSpace($AccessToken)) {
 # Step 3: ThinkOrSwim Logon Bypass Phase
 Write-Host "`n[3/4] Activating ThinkOrSwim Automated Logon..." -ForegroundColor Yellow
 
-# HARDCODE YOUR THINKORSWIM CREDENTIALS HERE
-# Load credentials from .env (if present)
-$envFile = Join-Path $ScriptDir ".env"
-if (Test-Path $envFile) {
-    Get-Content $envFile | Where-Object { $_ -match '\S' } |
-        ForEach-Object {
-            $pair = $_ -split '=',2
-            $name = $pair[0].Trim()
-            $value = $pair[1].Trim()
-            Set-Item -Path "Env:$name" -Value $value
-        }
-}
-$TOSUsername = $Env:TOS_USERNAME
-$TOSPassword = $Env:TOS_PASSWORD
+
 
 Write-Host "Opening ThinkOrSwim Application..." -ForegroundColor Cyan
 Start-Process -FilePath "C:\Users\WDAGUtilityAccount\Desktop\tos\thinkorswim.exe"

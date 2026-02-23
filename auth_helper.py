@@ -5,17 +5,22 @@ import base64
 import sys
 import os
 
-# Defaults
-DEFAULT_CLIENT_ID = "REDACTED"
-DEFAULT_CLIENT_SECRET = "REDACTED"
+# Load from environment variables (set in .env and passed by PowerShell launcher)
+DEFAULT_CLIENT_ID = os.environ.get("SCHWAB_CLIENT_ID", "")
+DEFAULT_CLIENT_SECRET = os.environ.get("SCHWAB_CLIENT_SECRET", "")
 REDIRECT_URI = "https://developer.schwab.com/oauth2-redirect.html"
 
 def get_tokens():
     print("--- Schwab Token Generator ---")
     
-    # 1. Client ID & Secret (Hardcoded)
+    # 1. Client ID & Secret
     client_id = DEFAULT_CLIENT_ID
     client_secret = DEFAULT_CLIENT_SECRET
+
+    if not client_id or not client_secret:
+        print("ERROR: SCHWAB_CLIENT_ID or SCHWAB_CLIENT_SECRET not set.")
+        print("Please add them to your .env file and relaunch the script.")
+        sys.exit(1)
     token_url = "https://api.schwabapi.com/v1/oauth/token"
     headers = {
         "Authorization": "Basic " + base64.b64encode(f"{client_id}:{client_secret}".encode()).decode(),
