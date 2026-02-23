@@ -55,10 +55,11 @@ This repository contains a Windows‑based automation suite that drives the Thin
 ## Telegram Bot Commands
 | Command | Description |
 |---------|-------------|
-| `/status` | Shows live engine status and active Java process count. |
-| `/restart`| Gracefully restarts the Java engine (creates `.reboot_flag`). |
-| `/console`| Captures a cropped screenshot of the trading console and sends it via Telegram. |
-| `/help`   | Lists available commands. |
+| `/status` | Check sync & TOS screen |
+| `/console`| Live Java terminal logs |
+| `/restart`| Reboot Engine |
+
+![Telegram Bot Commands](img/telegram_bot.png)
 
 ## Token Refresh Logic (PowerShell)
 The launcher reads `schwab_tokens.json`. If the `access_token_expires_at` timestamp is less than 24 hours from now, it automatically runs `auth_helper.py` to obtain a fresh token before launching the Java engine.

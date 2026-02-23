@@ -29,6 +29,7 @@ public class App {
     private static final ObjectMapper mapper = new ObjectMapper();
     private static long lastTotalVolume = -1;
     private static long lastCandleTime = -1;
+    private static long lastTokenRefreshTime = System.currentTimeMillis();
     private static StrategyAPI strategy = new LiveStrategy();
 
     public static long getLastCandleTime() {
@@ -253,114 +254,138 @@ public class App {
                     break;
                 }
 
-                try {
-                    // /pricehistory request
-                    HttpUrl url = HttpUrl.parse(API_BASE + "/pricehistory").newBuilder()
-                            .addQueryParameter("symbol", symbol)
-                            .addQueryParameter("periodType", "day")
-                            .addQueryParameter("period", "1")
-                            .addQueryParameter("frequencyType", "minute")
-                            .addQueryParameter("frequency", "1")
-                            .addQueryParameter("needExtendedHoursData", "true")
-                            .build();
+                boolean retryNow;
+                do {
+                    retryNow = false;
+                    try {
+                        // /pricehistory request
+                        HttpUrl url = HttpUrl.parse(API_BASE + "/pricehistory").newBuilder()
+                                .addQueryParameter("symbol", symbol)
+                                .addQueryParameter("periodType", "day")
+                                .addQueryParameter("period", "1")
+                                .addQueryParameter("frequencyType", "minute")
+                                .addQueryParameter("frequency", "1")
+                                .addQueryParameter("needExtendedHoursData", "true")
+                                .build();
 
-                    Request request = new Request.Builder()
-                            .url(url)
-                            .addHeader("Authorization", "Bearer " + ACCESS_TOKEN)
-                            .build();
+                        Request request = new Request.Builder()
+                                .url(url)
+                                .addHeader("Authorization", "Bearer " + ACCESS_TOKEN)
+                                .build();
 
-                    try (Response response = client.newCall(request).execute()) {
-                        if (response.isSuccessful()) {
-                            String json = response.body().string();
-                            JsonNode root = mapper.readTree(json);
+                        try (Response response = client.newCall(request).execute()) {
+                            if (response.isSuccessful()) {
+                                String json = response.body().string();
+                                JsonNode root = mapper.readTree(json);
 
-                            JsonNode candles = root.path("candles");
-                            if (candles.isArray() && candles.size() > 0) {
-                                int index = candles.size() - 1;
-                                JsonNode candle = candles.get(index);
+                                JsonNode candles = root.path("candles");
+                                if (candles.isArray() && candles.size() > 0) {
+                                    int index = candles.size() - 1;
+                                    JsonNode candle = candles.get(index);
 
-                                long nowMinute = (System.currentTimeMillis() / 60000) * 60000;
-                                if (candle.path("datetime").asLong() >= nowMinute && index > 0) {
-                                    index--;
-                                    candle = candles.get(index);
-                                }
+                                    long nowMinute = (System.currentTimeMillis() / 60000) * 60000;
+                                    if (candle.path("datetime").asLong() >= nowMinute && index > 0) {
+                                        index--;
+                                        candle = candles.get(index);
+                                    }
 
-                                long timeEpoch = candle.path("datetime").asLong();
-                                double open = candle.path("open").asDouble();
-                                double high = candle.path("high").asDouble();
-                                double low = candle.path("low").asDouble();
-                                double close = candle.path("close").asDouble();
-                                long tickVol = candle.path("volume").asLong();
+                                    long timeEpoch = candle.path("datetime").asLong();
+                                    double open = candle.path("open").asDouble();
+                                    double high = candle.path("high").asDouble();
+                                    double low = candle.path("low").asDouble();
+                                    double close = candle.path("close").asDouble();
+                                    long tickVol = candle.path("volume").asLong();
 
-                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                                String timeStr = sdf.format(new java.util.Date(timeEpoch));
+                                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss");
+                                    String timeStr = sdf.format(new java.util.Date(timeEpoch));
 
-                                // Fetch Quote for Current Total Volume to calculate contract delta
-                                long contractVol = 0;
-                                Request quoteReq = new Request.Builder()
-                                        .url(API_BASE + "/quotes?symbols=" + encodedSymbol)
-                                        .addHeader("Authorization", "Bearer " + ACCESS_TOKEN)
-                                        .build();
+                                    // Fetch Quote for Current Total Volume to calculate contract delta
+                                    long contractVol = 0;
+                                    Request quoteReq = new Request.Builder()
+                                            .url(API_BASE + "/quotes?symbols=" + encodedSymbol)
+                                            .addHeader("Authorization", "Bearer " + ACCESS_TOKEN)
+                                            .build();
 
-                                try (Response qResp = client.newCall(quoteReq).execute()) {
-                                    if (qResp.isSuccessful()) {
-                                        JsonNode qRoot = mapper.readTree(qResp.body().string());
-                                        Iterator<String> qFields = qRoot.fieldNames();
-                                        if (qFields.hasNext()) {
-                                            long currentTotal = qRoot.get(qFields.next()).path("quote")
-                                                    .path("totalVolume").asLong();
-                                            if (lastTotalVolume != -1) {
-                                                contractVol = currentTotal - lastTotalVolume;
+                                    try (Response qResp = client.newCall(quoteReq).execute()) {
+                                        if (qResp.isSuccessful()) {
+                                            JsonNode qRoot = mapper.readTree(qResp.body().string());
+                                            Iterator<String> qFields = qRoot.fieldNames();
+                                            if (qFields.hasNext()) {
+                                                long currentTotal = qRoot.get(qFields.next()).path("quote")
+                                                        .path("totalVolume").asLong();
+                                                if (lastTotalVolume != -1) {
+                                                    contractVol = currentTotal - lastTotalVolume;
+                                                }
+                                                lastTotalVolume = currentTotal;
                                             }
-                                            lastTotalVolume = currentTotal;
                                         }
                                     }
-                                }
 
-                                if (timeEpoch > lastCandleTime) {
-                                    lastCandleTime = timeEpoch;
-                                    Candle newCandle = new Candle(
-                                            LocalDateTime.ofInstant(Instant.ofEpochMilli(timeEpoch),
-                                                    ZoneId.systemDefault()),
-                                            open, high, low, close, (double) tickVol);
+                                    if (timeEpoch > lastCandleTime) {
+                                        lastCandleTime = timeEpoch;
+                                        Candle newCandle = new Candle(
+                                                LocalDateTime.ofInstant(Instant.ofEpochMilli(timeEpoch),
+                                                        ZoneId.systemDefault()),
+                                                open, high, low, close, (double) tickVol);
 
-                                    TradeInstruction instruction = strategy.onTick(newCandle);
+                                        TradeInstruction instruction = strategy.onTick(newCandle);
 
-                                    System.out.println("   > [ENGINE SIGNAL] " + instruction.action + " | E: "
-                                            + instruction.entryPrice + " | SL: " + instruction.stopLoss + " | TP: "
-                                            + instruction.takeProfit + "  (" + instruction.comment + ")");
+                                        System.out.println("   > [ENGINE SIGNAL] " + instruction.action + " | E: "
+                                                + instruction.entryPrice + " | SL: " + instruction.stopLoss + " | TP: "
+                                                + instruction.takeProfit + "  (" + instruction.comment + ") . "
+                                                + timeStr
+                                                + " | "
+                                                + open + " | " + high + " | " + low + " | " + close);
 
-                                    // TODO: Trigger C# Executor
-                                    if (instruction.action == TradeInstruction.Action.BUY
-                                            || instruction.action == TradeInstruction.Action.SELL) {
-                                        System.out.println("     --> EXECUTING TRADE SIGNAL!");
-                                        executeTrade(instruction);
-                                    } else if (instruction.action == TradeInstruction.Action.CLOSE_LONG
-                                            || instruction.action == TradeInstruction.Action.CLOSE_SHORT) {
-                                        System.out.println("     --> EXECUTING CLOSE SIGNAL!");
-                                        // implement close logic
+                                        // TODO: Trigger C# Executor
+                                        if (instruction.action == TradeInstruction.Action.BUY
+                                                || instruction.action == TradeInstruction.Action.SELL) {
+                                            System.out.println("     --> EXECUTING TRADE SIGNAL!");
+                                            executeTrade(instruction);
+                                        } else if (instruction.action == TradeInstruction.Action.CLOSE_LONG
+                                                || instruction.action == TradeInstruction.Action.CLOSE_SHORT) {
+                                            System.out.println("     --> EXECUTING CLOSE SIGNAL!");
+                                            // implement close logic
+                                        }
+                                    } else {
+                                        System.out.println("   > Candle already processed.");
                                     }
+
                                 } else {
-                                    System.out.println("   > Candle already processed.");
+                                    System.out.println("No candles returned.");
                                 }
-
+                            } else if (response.code() == 401) {
+                                System.out.println("HTTP 401 Unauthorized detected! Token expired.");
+                                refreshAccessToken();
+                                lastTokenRefreshTime = System.currentTimeMillis();
+                                System.out.println("  -> Retrying fetch immediately with new token...");
+                                retryNow = true;
                             } else {
-                                System.out.println("No candles returned.");
+                                System.out.println("Error History: " + response.code());
                             }
-                        } else if (response.code() == 401) {
-                            System.out.println("HTTP 401 Unauthorized detected! Token expired.");
-                            refreshAccessToken();
-                            // We missed this minute's live pull, but the next loop iteration in 60s will
-                            // catch the previous candle
-                            // because /pricehistory returns the full day anyway.
-                        } else {
-                            System.out.println("Error History: " + response.code());
                         }
-                    }
 
-                } catch (Exception e) {
-                    System.out.println("Poll Error: " + e.getMessage());
+                    } catch (Exception e) {
+                        System.out.println("Poll Error: " + e.getMessage());
+                    }
+                } while (retryNow);
+
+                // Now that the candle pull for this minute is 100% complete...
+                // Execute proactive background token refresh if 25 mins have passed
+                if (System.currentTimeMillis() - lastTokenRefreshTime > 25 * 60 * 1000) {
+                    lastTokenRefreshTime = System.currentTimeMillis(); // Reset immediately so it doesn't trigger again
+                    Thread bgRefresh = new Thread(() -> {
+                        System.out.println("\n--- [BACKGROUND TOKEN REFRESH INITIATED] ---");
+                        System.out.println(
+                                "Token is approaching 30-minute expiry. Refreshing gracefully without blocking the main engine thread...");
+                        refreshAccessToken();
+                        System.out.println("Background token refresh completed cleanly.\n");
+                    });
+                    bgRefresh.setDaemon(true);
+                    bgRefresh.start();
                 }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
