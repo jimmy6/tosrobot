@@ -1,0 +1,3 @@
+@echo off
+echo Booting Windows Sandbox (Full Size) for ThinkOrSwim Trading Robot...
+powershell.exe -ExecutionPolicy Bypass -NoProfile -File "%~dp0launch_sandbox.ps1"

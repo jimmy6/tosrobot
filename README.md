@@ -44,8 +44,8 @@ This repository contains a Windows‑based automation suite that drives the Thin
    ```
    The file is ignored via `.gitignore` so it never gets committed.
 3. **Run the launcher**
-   ```powershell
-   .\Launch‑TradingRobot.ps1
+   ```cmd
+   start_robot.bat
    ```
    The script will:
    - Check `schwab_tokens.json` for expiry and refresh if needed.
