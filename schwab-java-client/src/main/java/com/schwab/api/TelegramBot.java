@@ -13,9 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 public class TelegramBot implements Runnable {
 
-    private static final String TOKEN = "REDACTED_TELEGRAM_BOT_TOKEN";
-    private static final String CHAT_ID = "REDACTED_TELEGRAM_CHAT_ID";
-    private static final String API_URL = "https://api.telegram.org/bot" + TOKEN;
+    private static final String TOKEN = System.getenv("TELEGRAM_BOT_TOKEN");
+    private static final String CHAT_ID = System.getenv("TELEGRAM_CHAT_ID");
+    private static final String API_URL = "https://api.telegram.org/bot" + (TOKEN != null ? TOKEN : "");
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final OkHttpClient client = new OkHttpClient.Builder()
             .readTimeout(35, TimeUnit.SECONDS)

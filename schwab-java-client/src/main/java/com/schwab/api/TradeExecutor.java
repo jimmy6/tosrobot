@@ -462,8 +462,14 @@ public class TradeExecutor {
     }
 
     private static void sendTelegramPhoto(File file, String captionData) {
-        String token = "REDACTED_TELEGRAM_BOT_TOKEN";
-        String chatId = "REDACTED_TELEGRAM_CHAT_ID";
+        String token = System.getenv("TELEGRAM_BOT_TOKEN");
+        String chatId = System.getenv("TELEGRAM_CHAT_ID");
+
+        if (token == null || chatId == null || token.isEmpty() || chatId.isEmpty()) {
+            System.out
+                    .println("   -> Skipping Telegram Photo: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in .env.");
+            return;
+        }
         String boundary = "===" + System.currentTimeMillis() + "===";
 
         try {
